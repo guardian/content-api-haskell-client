@@ -42,6 +42,28 @@ data Tag = Tag {
   , largeBylineImageUrl :: Maybe URL
   } deriving (Show)
 
+-- for now I'm just adding the search param
+-- TODO: add all fields here http://explorer.content.guardianapis.com/#/tags?q=video
+data TagSearchQuery = TagSearchQuery {
+    q :: T.Text
+  } deriving (Show)
+
+data TagSearchResult = TagSearchResult {
+    status :: T.Text
+  , totalResults :: Int
+  , startIndex :: Int
+  , pageSize :: Int
+  , currentPage :: Int
+  , pages :: Int
+  , results :: [Tag]
+  } deriving (Show)
+
+data ApiConfig = ApiConfig {
+    endpoint :: T.Text
+  , apiKey :: Maybe T.Text
+  } deriving (Show)
+
+
 instance FromJSON Reference where
   parseJSON (Object v) = do
     referenceId <- v .: "id"
@@ -69,22 +91,6 @@ instance FromJSON Tag where
 
   parseJSON _ = mzero
 
--- for now I'm just adding the search param
--- TODO: add all fields here http://explorer.content.guardianapis.com/#/tags?q=video
-data TagSearchQuery = TagSearchQuery {
-    q :: T.Text
-  } deriving (Show)
-
-data TagSearchResult = TagSearchResult {
-    status :: T.Text
-  , totalResults :: Int
-  , startIndex :: Int
-  , pageSize :: Int
-  , currentPage :: Int
-  , pages :: Int
-  , results :: [Tag]
-  } deriving (Show)
-
 instance FromJSON TagSearchResult where
   parseJSON (Object v) = do
     r <- v .: "response"
@@ -99,8 +105,3 @@ instance FromJSON TagSearchResult where
       currentPage pages results
 
   parseJSON _ = mzero
-
-data ApiConfig = ApiConfig {
-    endpoint :: T.Text
-  , apiKey :: Maybe T.Text
-  } deriving (Show)
