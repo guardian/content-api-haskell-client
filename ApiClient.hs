@@ -5,8 +5,10 @@ import Control.Monad
 import Control.Monad.IO.Class (liftIO)
 import Data.Conduit
 import Data.Aeson
-import qualified Data.Text as T
 import Network.HTTP.Conduit
+
+import qualified Data.Text as T
+import qualified Data.Text.IO as TIO
 
 newtype URL = URL { unURL :: T.Text } deriving (Show)
 newtype TagId = TagId { unTagId :: T.Text } deriving (Show)
@@ -123,4 +125,4 @@ main :: IO ()
 main = do
   response <- tagSearch (ApiConfig "http://content.guardianapis.com" Nothing) (TagSearchQuery "video")
   putStrLn "Found tags:"
-  mapM_ putStrLn (map (T.unpack . unTagId . tagId) (results response))
+  mapM_ (TIO.putStrLn . unTagId . tagId) (results response)
