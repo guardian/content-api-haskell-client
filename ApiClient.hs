@@ -5,6 +5,7 @@ import Control.Monad
 import Control.Monad.IO.Class (liftIO)
 import Data.Conduit
 import Data.Aeson
+import Network                (withSocketsDo)
 import Network.HTTP.Conduit
 
 import qualified Data.Text as T
@@ -122,7 +123,7 @@ tagSearch config query = runResourceT $ do
         Nothing -> liftIO $ mzero
 
 main :: IO ()
-main = do
+main = withSocketsDo $ do
   response <- tagSearch (ApiConfig "http://content.guardianapis.com" Nothing) (TagSearchQuery "video")
   putStrLn "Found tags:"
   mapM_ (TIO.putStrLn . unTagId . tagId) (results response)
