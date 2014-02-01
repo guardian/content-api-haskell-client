@@ -1,31 +1,37 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 
 import Control.Applicative
+import Control.Exception      (Exception, catch, throwIO)
 import Control.Monad
 import Control.Monad.IO.Class (liftIO)
-import Data.Conduit
+
 import Data.Aeson
+import Data.Conduit
+import Data.Typeable          (Typeable)
+import Data.Text              (Text)
 import Network                (withSocketsDo)
 import Network.HTTP.Conduit
+import Network.HTTP.Types
 
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 
-newtype URL = URL { unURL :: T.Text } deriving (Show)
-newtype TagId = TagId { unTagId :: T.Text } deriving (Show)
-newtype ReferenceType = ReferenceType { unReferenceType :: T.Text } deriving (Show)
+newtype URL = URL { unURL :: Text } deriving (Show)
+newtype TagId = TagId { unTagId :: Text } deriving (Show)
+newtype ReferenceType = ReferenceType { unReferenceType :: Text } deriving (Show)
 
 data Reference = Reference {
     referenceType :: ReferenceType
-  , referenceId :: T.Text
+  , referenceId :: Text
   } deriving (Show)
 
 -- Although it's not represented like this either in the JSON or the Scala 
 -- client, given these fields will both either exist or not exist, I think it 
 -- makes sense for there to be a single type wrapping both
 data Section = Section {
-    sectionId :: T.Text
-  , name :: T.Text
+    sectionId :: Text
+  , name :: Text
   } deriving (Show)
 
 -- Currently just copying the Scala client's implementation. It would certainly 
@@ -34,13 +40,13 @@ data Section = Section {
 -- have proper disjoint types.
 data Tag = Tag {
     tagId :: TagId
-  , tagType :: T.Text 
-  , section :: Maybe Section  
-  , webTitle :: T.Text  
+  , tagType :: Text
+  , section :: Maybe Section
+  , webTitle :: Text
   , webUrl :: URL 
   , apiUrl :: URL 
   , references :: Maybe [Reference] 
-  , bio :: Maybe T.Text 
+  , bio :: Maybe Text
   , bylineImageUrl :: Maybe URL 
   , largeBylineImageUrl :: Maybe URL
   } deriving (Show)
@@ -75,11 +81,11 @@ instance FromJSON Tag where
 -- for now I'm just adding the search param
 -- TODO: add all fields here http://explorer.content.guardianapis.com/#/tags?q=video
 data TagSearchQuery = TagSearchQuery {
-    q :: T.Text  
+    q :: Text
   } deriving (Show)
 
 data TagSearchResult = TagSearchResult {
-    status :: T.Text
+    status :: Text
   , totalResults :: Int
   , startIndex :: Int
   , pageSize :: Int 
@@ -103,24 +109,39 @@ instance FromJSON TagSearchResult where
       
   parseJSON _ = mzero
 
+data ContentApiError = InvalidApiKey
+                     | OtherContentApiError Int Text
+                       deriving (Typeable, Show, Eq)
+
+instance Exception ContentApiError
+
 data ApiConfig = ApiConfig {
-    endpoint :: T.Text
-  , apiKey :: Maybe T.Text
+    endpoint :: Text
+  , apiKey :: Maybe Text
   } deriving (Show)
 
 makeUrl :: ApiConfig -> TagSearchQuery -> String
-makeUrl config query = T.unpack $ T.concat [endpoint config, "/tags?q=", q query]
+makeUrl (ApiConfig endpoint key) query = T.unpack $
+  T.concat [endpoint, "/tags?q=", q query, maybe "" (T.append "&api-key=") key]
 
 tagSearch :: ApiConfig -> TagSearchQuery -> IO TagSearchResult
-
 tagSearch config query = runResourceT $ do
   req <- parseUrl (makeUrl config query)
   man <- liftIO $ newManager conduitManagerSettings
-  response <- httpLbs req man
-  let tagResult = decode $ responseBody response in
-      case tagResult of
-        Just result -> return result
-        Nothing -> liftIO $ mzero
+  response <- liftIO $ catch (httpLbs req man)
+    (\e -> case e :: HttpException of
+      StatusCodeException _ headers _ ->
+        maybe (throwIO e) throwIO (contentApiError headers)
+      _ -> throwIO e)
+  let tagResult = decode $ responseBody response
+  case tagResult of
+    Just result -> return result
+    Nothing -> liftIO $ mzero
+
+contentApiError :: ResponseHeaders -> Maybe ContentApiError
+contentApiError headers = case lookup "X-Mashery-Error-Code" headers of
+  Just "ERR_403_DEVELOPER_INACTIVE" -> Just InvalidApiKey
+  _ -> Nothing
 
 main :: IO ()
 main = withSocketsDo $ do
