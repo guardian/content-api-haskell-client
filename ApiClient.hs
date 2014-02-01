@@ -2,7 +2,7 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 
 import Control.Applicative
-import Control.Exception      (Exception, catch, throwIO)
+import Control.Exception.Lifted
 import Control.Monad
 import Control.Monad.IO.Class (liftIO)
 
@@ -128,7 +128,7 @@ tagSearch :: ApiConfig -> TagSearchQuery -> IO TagSearchResult
 tagSearch config query = runResourceT $ do
   req <- parseUrl (makeUrl config query)
   man <- liftIO $ newManager conduitManagerSettings
-  response <- liftIO $ catch (httpLbs req man)
+  response <- catch (httpLbs req man)
     (\e -> case e :: HttpException of
       StatusCodeException _ headers _ ->
         maybe (throwIO e) throwIO (contentApiError headers)
@@ -136,7 +136,7 @@ tagSearch config query = runResourceT $ do
   let tagResult = decode $ responseBody response
   case tagResult of
     Just result -> return result
-    Nothing -> liftIO $ mzero
+    Nothing -> liftIO mzero
 
 contentApiError :: ResponseHeaders -> Maybe ContentApiError
 contentApiError headers = case lookup "X-Mashery-Error-Code" headers of
