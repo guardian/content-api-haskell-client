@@ -6,7 +6,7 @@ import Blaze.ByteString.Builder (Builder, fromByteString, toByteString)
 import Control.Applicative
 import Control.Exception.Lifted
 import Control.Monad
-import Control.Monad.IO.Class (liftIO)
+import Control.Monad.Reader
 
 import Data.Aeson
 import Data.ByteString (ByteString)
@@ -121,23 +121,27 @@ data ContentApiError = InvalidApiKey
 
 instance Exception ContentApiError
 
+type ApiKey = ByteString
+type Endpoint = ByteString
+
 data ApiConfig = ApiConfig {
     endpoint :: Builder
-  , apiKey :: Maybe ByteString
+  , apiKey :: Maybe ApiKey
+  , manager :: Manager
   }
 
-makeUrl :: ApiConfig -> TagSearchQuery -> String
-makeUrl (ApiConfig endpoint key) (TagSearchQuery q) =
-  BC.unpack . toByteString $ endpoint <> encodePath path query
-  where
-    path  = ["tags"]
-    query = ("q", Just q) : foldMap (\k -> [("api-key", Just k)]) key
+makeUrl :: TagSearchQuery -> ContentApi String
+makeUrl (TagSearchQuery q) = do
+  ApiConfig endpoint key _ <- ask
+  let query = ("q", Just q) : foldMap (\k -> [("api-key", Just k)]) key
+  return $ BC.unpack . toByteString $ endpoint <> encodePath ["tags"] query
 
-tagSearch :: ApiConfig -> TagSearchQuery -> IO TagSearchResult
-tagSearch config query = runResourceT $ do
-  req <- parseUrl $ makeUrl config query
-  man <- liftIO $ newManager conduitManagerSettings
-  response <- catch (httpLbs req man)
+tagSearch :: TagSearchQuery -> ContentApi TagSearchResult
+tagSearch query = do
+  ApiConfig _ _ mgr <- ask
+  url <- makeUrl query
+  req <- parseUrl url
+  response <- catch (httpLbs req mgr)
     (\e -> case e :: HttpException of
       StatusCodeException _ headers _ ->
         maybe (throwIO e) throwIO (contentApiError headers)
@@ -145,19 +149,28 @@ tagSearch config query = runResourceT $ do
   let tagResult = decode $ responseBody response
   case tagResult of
     Just result -> return result
-    Nothing -> liftIO mzero
+    Nothing -> throwIO $ OtherContentApiError (-1) "Parse Error"
 
 contentApiError :: ResponseHeaders -> Maybe ContentApiError
 contentApiError headers = case lookup "X-Mashery-Error-Code" headers of
   Just "ERR_403_DEVELOPER_INACTIVE" -> Just InvalidApiKey
   _ -> Nothing
 
-defaultEndpoint :: Builder
-defaultEndpoint = fromByteString "http://content.guardianapis.com"
+defaultApiConfig :: MonadIO f => Maybe ApiKey -> f ApiConfig
+defaultApiConfig key = do
+  man <- liftIO $ newManager conduitManagerSettings
+  return $ ApiConfig defaultEndpoint key man
+  where
+    defaultEndpoint = fromByteString "http://content.guardianapis.com"
+
+type ContentApi a = ReaderT ApiConfig (ResourceT IO) a
+
+runContentApi :: MonadIO f => ApiConfig -> ContentApi a -> f a
+runContentApi config action = liftIO . runResourceT $ runReaderT action config
 
 main :: IO ()
 main = withSocketsDo $ do
-  let config = ApiConfig defaultEndpoint Nothing
-  response <- tagSearch config $ TagSearchQuery "video"
+  config   <- defaultApiConfig Nothing
+  response <- runContentApi config $ tagSearch (TagSearchQuery "video")
   putStrLn "Found tags:"
-  mapM_ (TIO.putStrLn . unTagId . tagId) (results response)
+  forM_ (results response) $ TIO.putStrLn . unTagId . tagId
