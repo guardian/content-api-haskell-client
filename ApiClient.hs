@@ -1,20 +1,26 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 
+import Blaze.ByteString.Builder (Builder, fromByteString, toByteString)
+
 import Control.Applicative
 import Control.Exception.Lifted
 import Control.Monad
 import Control.Monad.IO.Class (liftIO)
 
 import Data.Aeson
+import Data.ByteString (ByteString)
 import Data.Conduit
-import Data.Typeable          (Typeable)
-import Data.Text              (Text)
-import Network                (withSocketsDo)
+import Data.Foldable   (foldMap)
+import Data.Monoid
+import Data.Typeable   (Typeable)
+import Data.Text       (Text)
+
+import Network (withSocketsDo)
 import Network.HTTP.Conduit
 import Network.HTTP.Types
 
-import qualified Data.Text as T
+import qualified Data.ByteString.Char8 as BC
 import qualified Data.Text.IO as TIO
 
 newtype URL = URL { unURL :: Text } deriving (Show)
@@ -81,7 +87,7 @@ instance FromJSON Tag where
 -- for now I'm just adding the search param
 -- TODO: add all fields here http://explorer.content.guardianapis.com/#/tags?q=video
 data TagSearchQuery = TagSearchQuery {
-    q :: Text
+    q :: ByteString
   } deriving (Show)
 
 data TagSearchResult = TagSearchResult {
@@ -116,17 +122,20 @@ data ContentApiError = InvalidApiKey
 instance Exception ContentApiError
 
 data ApiConfig = ApiConfig {
-    endpoint :: Text
-  , apiKey :: Maybe Text
-  } deriving (Show)
+    endpoint :: Builder
+  , apiKey :: Maybe ByteString
+  }
 
 makeUrl :: ApiConfig -> TagSearchQuery -> String
-makeUrl (ApiConfig endpoint key) query = T.unpack $
-  T.concat [endpoint, "/tags?q=", q query, maybe "" (T.append "&api-key=") key]
+makeUrl (ApiConfig endpoint key) (TagSearchQuery q) =
+  BC.unpack . toByteString $ endpoint <> encodePath path query
+  where
+    path  = ["tags"]
+    query = ("q", Just q) : foldMap (\k -> [("api-key", Just k)]) key
 
 tagSearch :: ApiConfig -> TagSearchQuery -> IO TagSearchResult
 tagSearch config query = runResourceT $ do
-  req <- parseUrl (makeUrl config query)
+  req <- parseUrl $ makeUrl config query
   man <- liftIO $ newManager conduitManagerSettings
   response <- catch (httpLbs req man)
     (\e -> case e :: HttpException of
@@ -143,8 +152,12 @@ contentApiError headers = case lookup "X-Mashery-Error-Code" headers of
   Just "ERR_403_DEVELOPER_INACTIVE" -> Just InvalidApiKey
   _ -> Nothing
 
+defaultEndpoint :: Builder
+defaultEndpoint = fromByteString "http://content.guardianapis.com"
+
 main :: IO ()
 main = withSocketsDo $ do
-  response <- tagSearch (ApiConfig "http://content.guardianapis.com" Nothing) (TagSearchQuery "video")
+  let config = ApiConfig defaultEndpoint Nothing
+  response <- tagSearch config $ TagSearchQuery "video"
   putStrLn "Found tags:"
   mapM_ (TIO.putStrLn . unTagId . tagId) (results response)
