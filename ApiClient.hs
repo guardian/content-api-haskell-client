@@ -6,7 +6,8 @@ import Blaze.ByteString.Builder (Builder, fromByteString, toByteString)
 import Control.Applicative
 import Control.Exception.Lifted
 import Control.Monad
-import Control.Monad.Reader
+import Control.Monad.IO.Class
+import Control.Monad.Trans.Reader
 
 import Data.Aeson
 import Data.ByteString (ByteString)
