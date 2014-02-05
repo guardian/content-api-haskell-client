@@ -13,8 +13,9 @@ extra-source-files:  README.md
 cabal-version:       >=1.10
 
 executable open-platform-content-api-haskell-client
-  main-is:             ApiClient.hs
-  -- other-modules:
+  main-is:             Example.hs
+  other-modules:       Network.Guardian.ContentApi
+                     , Network.Guardian.ContentApi.Tag
   other-extensions:    OverloadedStrings, DeriveDataTypeable
   build-depends:       base >=4.6 && <4.7
                      , blaze-builder >=0.3 && <0.4
