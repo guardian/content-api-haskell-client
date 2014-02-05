@@ -1,4 +1,4 @@
-name:                open-platform-content-api-haskell-client
+name:                guardian-content-api-client
 version:             0.1.0.0
 -- synopsis:
 -- description:
@@ -12,9 +12,8 @@ build-type:          Simple
 extra-source-files:  README.md
 cabal-version:       >=1.10
 
-executable open-platform-content-api-haskell-client
-  main-is:             Example.hs
-  other-modules:       Network.Guardian.ContentApi
+library
+  exposed-modules:     Network.Guardian.ContentApi
                      , Network.Guardian.ContentApi.Tag
   other-extensions:    OverloadedStrings, DeriveDataTypeable
   build-depends:       base >=4.6 && <4.7
