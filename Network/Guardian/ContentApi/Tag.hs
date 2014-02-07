@@ -6,7 +6,6 @@ import Control.Monad       (mzero)
 import Control.Applicative
 
 import Data.Aeson
-import Data.ByteString  (ByteString)
 import Data.Text        (Text)
 
 newtype TagId = TagId { unTagId :: Text } deriving (Show)
@@ -75,7 +74,9 @@ instance FromJSON Tag where
 -- for now I'm just adding the search param
 -- TODO: add all fields here http://explorer.content.guardianapis.com/#/tags?q=video
 data TagSearchQuery = TagSearchQuery {
-    q :: ByteString
+    tsQueryText :: Maybe Text
+  , tsSection :: Maybe Text
+  , tsTagType :: Maybe Text
   } deriving (Show)
 
 data TagSearchResult = TagSearchResult {

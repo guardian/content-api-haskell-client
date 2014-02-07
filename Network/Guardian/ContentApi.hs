@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module Network.Guardian.ContentApi
   (
@@ -20,9 +21,8 @@ import Control.Monad.IO.Class
 import Control.Monad.Trans.Reader
 
 import Data.Aeson      (decode)
-import Data.ByteString (ByteString)
 import Data.Conduit
-import Data.Foldable   (foldMap)
+import Data.Maybe      (catMaybes)
 import Data.Monoid
 import Data.Typeable   (Typeable)
 import Data.Text       (Text)
@@ -37,7 +37,7 @@ type ContentApi a = ReaderT ApiConfig (ResourceT IO) a
 runContentApi :: MonadIO f => ApiConfig -> ContentApi a -> f a
 runContentApi config action = liftIO . runResourceT $ runReaderT action config
 
-type ApiKey = ByteString
+type ApiKey = Text
 
 data ApiConfig = ApiConfig {
     endpoint :: Builder
@@ -67,10 +67,17 @@ tagSearch query = do
     Nothing -> throwIO $ OtherContentApiError (-1) "Parse Error"
 
 makeUrl :: TagSearchQuery -> ContentApi String
-makeUrl (TagSearchQuery q) = do
+makeUrl TagSearchQuery {..} = do
   ApiConfig endpoint key _ <- ask
-  let query = ("q", Just q) : foldMap (\k -> [("api-key", Just k)]) key
+  let query = queryTextToQuery $ catMaybes [
+                  mkParam "api-Key" key
+                , mkParam "q"       tsQueryText
+                , mkParam "section" tsSection
+                , mkParam "type"    tsTagType
+                ]
   return $ BC.unpack . toByteString $ endpoint <> encodePath ["tags"] query
+  where
+    mkParam k = fmap (\v -> (k, Just v))
 
 contentApiError :: ResponseHeaders -> Maybe ContentApiError
 contentApiError headers = case lookup "X-Mashery-Error-Code" headers of

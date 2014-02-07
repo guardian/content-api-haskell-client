@@ -13,6 +13,7 @@ import qualified Data.Text.IO as TIO
 main :: IO ()
 main = withSocketsDo $ do
   config   <- defaultApiConfig Nothing
-  response <- runContentApi config $ tagSearch (TagSearchQuery "video")
+  response <- runContentApi config . tagSearch $
+              TagSearchQuery (Just "morrissey") (Just "music") (Just "keyword")
   putStrLn "Found tags:"
   forM_ (results response) $ TIO.putStrLn . unTagId . tagId
