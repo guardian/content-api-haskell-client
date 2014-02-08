@@ -77,7 +77,7 @@ makeUrl TagSearchQuery {..} = do
                 ]
   return $ BC.unpack . toByteString $ endpoint <> encodePath ["tags"] query
   where
-    mkParam k = fmap (\v -> (k, Just v))
+    mkParam k = fmap $ \v -> (k, Just v)
 
 contentApiError :: ResponseHeaders -> Maybe ContentApiError
 contentApiError headers = case lookup "X-Mashery-Error-Code" headers of
