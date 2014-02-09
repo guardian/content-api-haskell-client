@@ -24,7 +24,7 @@ import Control.Monad.Trans.Reader
 
 import Data.Aeson      (decode)
 import Data.Conduit
-import Data.Maybe      (catMaybes)
+import Data.Maybe      (catMaybes, maybeToList)
 import Data.Monoid
 import Data.Typeable   (Typeable)
 import Data.Text       (Text)
@@ -56,7 +56,7 @@ instance Exception ContentApiError
 contentSearch :: ContentSearchQuery -> ContentApi ContentSearchResult
 contentSearch query = do
   ApiConfig _ _ mgr <- ask
-  url <- mkContentSearchUrl query
+  url <- contentSearchUrl query
   req <- parseUrl url
   response <- catch (httpLbs req mgr)
     (\e -> case e :: HttpException of
@@ -67,21 +67,18 @@ contentSearch query = do
   case result of
     Just result -> return result
     Nothing -> throwIO $ OtherContentApiError (-1) "Parse Error"
-    
-mkContentSearchUrl :: ContentSearchQuery -> ContentApi String
-mkContentSearchUrl ContentSearchQuery {..} = do
-  ApiConfig endpoint key _ <- ask
-  let query = queryTextToQuery $ catMaybes [
-                  mkParam "api-key" key
-                , mkParam "q"       csQueryText
-                , mkParam "section" csSection
-                ]
-  return $ BC.unpack . toByteString $ endpoint <> encodePath ["search"] query
+
+contentSearchUrl :: ContentSearchQuery -> ContentApi String
+contentSearchUrl ContentSearchQuery {..} =
+  mkUrl ["search"] $ catMaybes [
+      mkParam "q"       csQueryText
+    , mkParam "section" csSection
+    ]
 
 tagSearch :: TagSearchQuery -> ContentApi TagSearchResult
 tagSearch query = do
   ApiConfig _ _ mgr <- ask
-  url <- mkTagSearchUrl query
+  url <- tagSearchUrl query
   req <- parseUrl url
   response <- catch (httpLbs req mgr)
     (\e -> case e :: HttpException of
@@ -93,16 +90,19 @@ tagSearch query = do
     Just result -> return result
     Nothing -> throwIO $ OtherContentApiError (-1) "Parse Error"
 
-mkTagSearchUrl :: TagSearchQuery -> ContentApi String
-mkTagSearchUrl TagSearchQuery {..} = do
+tagSearchUrl :: TagSearchQuery -> ContentApi String
+tagSearchUrl TagSearchQuery {..} =
+  mkUrl ["tags"] $ catMaybes [
+      mkParam "q"       tsQueryText
+    , mkParam "section" tsSection
+    , mkParam "type"    tsTagType
+    ]
+
+mkUrl :: [Text] -> QueryText -> ContentApi String
+mkUrl path query = do
   ApiConfig endpoint key _ <- ask
-  let query = queryTextToQuery $ catMaybes [
-                  mkParam "api-key" key
-                , mkParam "q"       tsQueryText
-                , mkParam "section" tsSection
-                , mkParam "type"    tsTagType
-                ]
-  return $ BC.unpack . toByteString $ endpoint <> encodePath ["tags"] query
+  let query' = queryTextToQuery $ maybeToList (mkParam "api-key" key) ++ query
+  return $ BC.unpack . toByteString $ endpoint <> encodePath path query'
 
 mkParam :: Text -> Maybe Text -> Maybe (Text, Maybe Text)
 mkParam k = fmap $ \v -> (k, Just v) 
