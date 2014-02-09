@@ -5,7 +5,7 @@ module Main where
 import Control.Monad
 
 import Network.Guardian.ContentApi
-import Network.Guardian.ContentApi.Tag
+import Network.Guardian.ContentApi.Content
 import Network (withSocketsDo)
 
 import qualified Data.Text.IO as TIO
@@ -13,7 +13,7 @@ import qualified Data.Text.IO as TIO
 main :: IO ()
 main = withSocketsDo $ do
   config   <- defaultApiConfig Nothing
-  response <- runContentApi config . tagSearch $
-              TagSearchQuery (Just "morrissey") (Just "music") (Just "keyword")
-  putStrLn "Found tags:"
-  forM_ (results response) $ TIO.putStrLn . unTagId . tagId
+  response <- runContentApi config . contentSearch $
+                ContentSearchQuery (Just "morrissey") Nothing
+  putStrLn "Found content:"
+  forM_ (results response) $ TIO.putStrLn . unContentId . contentId

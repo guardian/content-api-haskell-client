@@ -9,9 +9,11 @@ module Network.Guardian.ContentApi
   , ApiConfig
   , defaultApiConfig
   , ContentApiError
+  , contentSearch
   , tagSearch
   ) where
 
+import Network.Guardian.ContentApi.Content
 import Network.Guardian.ContentApi.Tag
 
 import Blaze.ByteString.Builder (Builder, fromByteString, toByteString)
@@ -51,10 +53,35 @@ data ContentApiError = InvalidApiKey
 
 instance Exception ContentApiError
 
+contentSearch :: ContentSearchQuery -> ContentApi ContentSearchResult
+contentSearch query = do
+  ApiConfig _ _ mgr <- ask
+  url <- mkContentSearchUrl query
+  req <- parseUrl url
+  response <- catch (httpLbs req mgr)
+    (\e -> case e :: HttpException of
+      StatusCodeException _ headers _ ->
+        maybe (throwIO e) throwIO (contentApiError headers)
+      _ -> throwIO e)
+  let result = decode $ responseBody response
+  case result of
+    Just result -> return result
+    Nothing -> throwIO $ OtherContentApiError (-1) "Parse Error"
+    
+mkContentSearchUrl :: ContentSearchQuery -> ContentApi String
+mkContentSearchUrl ContentSearchQuery {..} = do
+  ApiConfig endpoint key _ <- ask
+  let query = queryTextToQuery $ catMaybes [
+                  mkParam "api-key" key
+                , mkParam "q"       csQueryText
+                , mkParam "section" csSection
+                ]
+  return $ BC.unpack . toByteString $ endpoint <> encodePath ["search"] query
+
 tagSearch :: TagSearchQuery -> ContentApi TagSearchResult
 tagSearch query = do
   ApiConfig _ _ mgr <- ask
-  url <- makeUrl query
+  url <- mkTagSearchUrl query
   req <- parseUrl url
   response <- catch (httpLbs req mgr)
     (\e -> case e :: HttpException of
@@ -66,18 +93,19 @@ tagSearch query = do
     Just result -> return result
     Nothing -> throwIO $ OtherContentApiError (-1) "Parse Error"
 
-makeUrl :: TagSearchQuery -> ContentApi String
-makeUrl TagSearchQuery {..} = do
+mkTagSearchUrl :: TagSearchQuery -> ContentApi String
+mkTagSearchUrl TagSearchQuery {..} = do
   ApiConfig endpoint key _ <- ask
   let query = queryTextToQuery $ catMaybes [
-                  mkParam "api-Key" key
+                  mkParam "api-key" key
                 , mkParam "q"       tsQueryText
                 , mkParam "section" tsSection
                 , mkParam "type"    tsTagType
                 ]
   return $ BC.unpack . toByteString $ endpoint <> encodePath ["tags"] query
-  where
-    mkParam k = fmap $ \v -> (k, Just v)
+
+mkParam :: Text -> Maybe Text -> Maybe (Text, Maybe Text)
+mkParam k = fmap $ \v -> (k, Just v) 
 
 contentApiError :: ResponseHeaders -> Maybe ContentApiError
 contentApiError headers = case lookup "X-Mashery-Error-Code" headers of

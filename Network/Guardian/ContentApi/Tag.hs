@@ -2,11 +2,15 @@
 
 module Network.Guardian.ContentApi.Tag where
 
-import Control.Monad       (mzero)
+import Network.Guardian.ContentApi.Reference
+import Network.Guardian.ContentApi.Section
+import Network.Guardian.ContentApi.URL
+
+import Control.Monad (mzero)
 import Control.Applicative
 
 import Data.Aeson
-import Data.Text        (Text)
+import Data.Text (Text)
 
 newtype TagId = TagId { unTagId :: Text } deriving (Show)
 
@@ -20,37 +24,12 @@ data Tag = Tag {
   , section :: Maybe Section
   , webTitle :: Text
   , webUrl :: URL 
-  , apiUrl :: URL 
-  , references :: Maybe [Reference] 
+  , apiUrl :: URL
+  , references :: Maybe [Reference]
   , bio :: Maybe Text
   , bylineImageUrl :: Maybe URL 
   , largeBylineImageUrl :: Maybe URL
   } deriving (Show)
-
-newtype URL = URL { unURL :: Text } deriving (Show)
-newtype ReferenceType = ReferenceType { unReferenceType :: Text } deriving (Show)
-
-data Reference = Reference {
-    referenceType :: ReferenceType
-  , referenceId :: Text
-  } deriving (Show)
-
--- Although it's not represented like this either in the JSON or the Scala 
--- client, given these fields will both either exist or not exist, I think it 
--- makes sense for there to be a single type wrapping both
-data Section = Section {
-    sectionId :: Text
-  , name :: Text
-  } deriving (Show)
-
-    
-instance FromJSON Reference where
-  parseJSON (Object v) = do
-    referenceId <- v .: "id"
-    referenceType <- v .: "type"
-    return $ Reference (ReferenceType referenceType) referenceId
-    
-  parseJSON _ = mzero
 
 instance FromJSON Tag where
   parseJSON (Object v) = do
