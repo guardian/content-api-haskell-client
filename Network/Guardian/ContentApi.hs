@@ -22,7 +22,7 @@ import Control.Exception.Lifted
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Reader
 
-import Data.Aeson      (decode)
+import Data.Aeson      (FromJSON, decode)
 import Data.Conduit
 import Data.Maybe      (catMaybes, maybeToList)
 import Data.Monoid
@@ -48,25 +48,30 @@ data ApiConfig = ApiConfig {
   }
 
 data ContentApiError = InvalidApiKey
+                     | ParseError
                      | OtherContentApiError Int Text
                        deriving (Typeable, Show, Eq)
 
 instance Exception ContentApiError
 
 contentSearch :: ContentSearchQuery -> ContentApi ContentSearchResult
-contentSearch query = do
+contentSearch = search contentSearchUrl
+
+tagSearch :: TagSearchQuery -> ContentApi TagSearchResult
+tagSearch = search tagSearchUrl
+
+search :: (FromJSON r) => (a -> ContentApi String) -> a -> ContentApi r
+search reqToUrl req = do
   ApiConfig _ _ mgr <- ask
-  url <- contentSearchUrl query
-  req <- parseUrl url
-  response <- catch (httpLbs req mgr)
-    (\e -> case e :: HttpException of
-      StatusCodeException _ headers _ ->
-        maybe (throwIO e) throwIO (contentApiError headers)
-      _ -> throwIO e)
-  let result = decode $ responseBody response
-  case result of
-    Just result -> return result
-    Nothing -> throwIO $ OtherContentApiError (-1) "Parse Error"
+  url      <- reqToUrl req
+  httpReq  <- parseUrl url
+  response <- catch (httpLbs httpReq mgr)
+                (\e -> case e :: HttpException of
+                  StatusCodeException _ headers _ ->
+                    maybe (throwIO e) throwIO (contentApiError headers)
+                  _ -> throwIO e)
+  let searchResult = decode $ responseBody response
+  maybe (throwIO ParseError) return searchResult
 
 contentSearchUrl :: ContentSearchQuery -> ContentApi String
 contentSearchUrl ContentSearchQuery {..} =
@@ -74,21 +79,6 @@ contentSearchUrl ContentSearchQuery {..} =
       mkParam "q"       csQueryText
     , mkParam "section" csSection
     ]
-
-tagSearch :: TagSearchQuery -> ContentApi TagSearchResult
-tagSearch query = do
-  ApiConfig _ _ mgr <- ask
-  url <- tagSearchUrl query
-  req <- parseUrl url
-  response <- catch (httpLbs req mgr)
-    (\e -> case e :: HttpException of
-      StatusCodeException _ headers _ ->
-        maybe (throwIO e) throwIO (contentApiError headers)
-      _ -> throwIO e)
-  let tagResult = decode $ responseBody response
-  case tagResult of
-    Just result -> return result
-    Nothing -> throwIO $ OtherContentApiError (-1) "Parse Error"
 
 tagSearchUrl :: TagSearchQuery -> ContentApi String
 tagSearchUrl TagSearchQuery {..} =
