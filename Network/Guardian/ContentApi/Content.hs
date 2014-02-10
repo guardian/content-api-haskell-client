@@ -31,7 +31,7 @@ data Content = Content {
   , webTitle :: Text
   , webUrl :: URL
   , apiUrl :: URL
-  -- , fields :: Map Text Text
+  , fields :: Map Text Text
   , tags :: [Tag]
   -- , factboxes :: [Factbox]
   -- , elements :: [Element]
@@ -42,8 +42,9 @@ data Content = Content {
 newtype ContentId = ContentId { unContentId :: Text } deriving Show
 
 data ContentSearchQuery = ContentSearchQuery {
-    csQueryText :: Maybe Text
-  , csSection   :: Maybe Text
+    csQueryText  :: Maybe Text
+  , csSection    :: Maybe Text
+  , csShowFields :: [Text]
   } deriving Show
 
 data ContentSearchResult = ContentSearchResult {
@@ -66,6 +67,7 @@ instance FromJSON Content where
     webUrl      <- v .:  "webUrl"
     apiUrl      <- v .:  "apiUrl"
     tags        <- v .:? "tags"
+    fields      <- v .:? "fields"
     references  <- v .:? "references"
     Just wpd    <- return $ parseUTCTime webPubDate
     return $
@@ -75,6 +77,7 @@ instance FromJSON Content where
               webTitle
               (URL webUrl)
               (URL apiUrl)
+              (fold fields)
               (fold tags)
               (fold references)
   parseJSON _ = mzero

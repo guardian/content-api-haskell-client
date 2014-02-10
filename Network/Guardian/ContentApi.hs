@@ -33,6 +33,7 @@ import Network.HTTP.Conduit
 import Network.HTTP.Types
 
 import qualified Data.ByteString.Char8 as BC
+import qualified Data.Text as T
 
 type ContentApi a = ReaderT ApiConfig (ResourceT IO) a
 
@@ -78,6 +79,7 @@ contentSearchUrl ContentSearchQuery {..} =
   mkUrl ["search"] $ catMaybes [
       mkParam "q"       csQueryText
     , mkParam "section" csSection
+    , mkParam "show-fields" . Just $ T.intercalate "," csShowFields
     ]
 
 tagSearchUrl :: TagSearchQuery -> ContentApi String
