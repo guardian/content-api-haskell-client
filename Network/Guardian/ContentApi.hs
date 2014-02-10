@@ -6,7 +6,7 @@ module Network.Guardian.ContentApi
   (
     ContentApi
   , runContentApi
-  , ApiConfig
+  , ApiConfig(..)
   , defaultApiConfig
   , ContentApiError
   , contentSearch

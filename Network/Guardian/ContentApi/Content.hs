@@ -1,6 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Network.Guardian.ContentApi.Content where
+module Network.Guardian.ContentApi.Content
+ (
+   Content(..)
+ , ContentId(..)
+ , ContentSearchQuery(..)
+ , ContentSearchResult(..)
+ ) where
 
 import Network.Guardian.ContentApi.Reference
 import Network.Guardian.ContentApi.Section
@@ -13,12 +19,15 @@ import Control.Monad
 import Data.Aeson
 import Data.Foldable (fold)
 import Data.Map      (Map)
-import Data.Text     (Text)
+import Data.Text     (Text, unpack)
+import Data.Thyme
+
+import System.Locale (defaultTimeLocale)
 
 data Content = Content {
     contentId :: ContentId
   , section :: Maybe Section
-  -- , webPublicationDate :: DateTime
+  , webPublicationDate :: UTCTime
   , webTitle :: Text
   , webUrl :: URL
   , apiUrl :: URL
@@ -52,15 +61,17 @@ instance FromJSON Content where
     id          <- v .:  "id"
     sectionId   <- v .:? "sectionId"
     sectionName <- v .:? "sectionName"
-    -- webPubDate  <- v .:  "webPublicationDate"
+    webPubDate  <- v .:  "webPublicationDate"
     webTitle    <- v .:  "webTitle"
     webUrl      <- v .:  "webUrl"
     apiUrl      <- v .:  "apiUrl"
     tags        <- v .:? "tags"
     references  <- v .:? "references"
+    Just wpd    <- return $ parseUTCTime webPubDate
     return $
       Content (ContentId id)
               (Section <$> sectionId <*> sectionName)
+              wpd
               webTitle
               (URL webUrl)
               (URL apiUrl)
@@ -87,3 +98,6 @@ instance FromJSON ContentSearchResult where
                           pages
                           results
   parseJSON _ = mzero
+
+parseUTCTime :: Text -> Maybe UTCTime
+parseUTCTime = parseTime defaultTimeLocale "%FT%H:%M:%S%Q%Z" . unpack
