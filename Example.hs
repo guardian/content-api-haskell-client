@@ -14,6 +14,6 @@ main :: IO ()
 main = withSocketsDo $ do
   config   <- defaultApiConfig Nothing
   response <- runContentApi config . contentSearch $
-                ContentSearchQuery (Just "morrissey") Nothing
+                ContentSearchQuery (Just "morrissey") Nothing []
   putStrLn "Found content:"
   forM_ (results response) $ TIO.putStrLn . unContentId . contentId
