@@ -19,6 +19,7 @@ import Network.Guardian.ContentApi.Tag
 import Blaze.ByteString.Builder (Builder, fromByteString, toByteString)
 
 import Control.Exception.Lifted
+import Control.Monad
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Reader
 
@@ -56,15 +57,14 @@ data ContentApiError = InvalidApiKey
 instance Exception ContentApiError
 
 contentSearch :: ContentSearchQuery -> ContentApi ContentSearchResult
-contentSearch = search contentSearchUrl
+contentSearch = search <=< contentSearchUrl
 
 tagSearch :: TagSearchQuery -> ContentApi TagSearchResult
-tagSearch = search tagSearchUrl
+tagSearch = search <=< tagSearchUrl
 
-search :: (FromJSON r) => (a -> ContentApi String) -> a -> ContentApi r
-search reqToUrl req = do
+search :: (FromJSON r) => String -> ContentApi r
+search url = do
   ApiConfig _ _ mgr <- ask
-  url      <- reqToUrl req
   httpReq  <- parseUrl url
   response <- catch (httpLbs httpReq mgr)
                 (\e -> case e :: HttpException of
