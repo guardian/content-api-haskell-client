@@ -25,7 +25,7 @@ import Control.Monad.Trans.Reader
 
 import Data.Aeson      (FromJSON, decode)
 import Data.Conduit
-import Data.Maybe      (catMaybes, maybeToList)
+import Data.Maybe      (maybeToList)
 import Data.Monoid
 import Data.Typeable   (Typeable)
 import Data.Text       (Text)
@@ -76,19 +76,15 @@ search url = do
 
 contentSearchUrl :: ContentSearchQuery -> ContentApi String
 contentSearchUrl ContentSearchQuery {..} =
-  mkUrl ["search"] $ concat [
-      param "q"     csQueryText
-    , sectionsParam csSection
-    , fieldsParam   csShowFields
-    ]
+  mkUrl ["search"] $ param "q" csQueryText
+                  <> sectionParam csSection
+                  <> fieldsParam csShowFields
 
 tagSearchUrl :: TagSearchQuery -> ContentApi String
 tagSearchUrl TagSearchQuery {..} =
-  mkUrl ["tags"] $ concat [
-      param "q"     tsQueryText
-    , sectionsParam tsSection
-    , param "type"  tsTagType
-    ]
+  mkUrl ["tags"] $ param "q" tsQueryText
+                <> sectionParam tsSection
+                <> param "type" tsTagType
 
 mkUrl :: [Text] -> QueryText -> ContentApi String
 mkUrl path query = do
@@ -99,8 +95,8 @@ mkUrl path query = do
 fieldsParam :: [Text] -> QueryText
 fieldsParam = multiParam "fields" ","
 
-sectionsParam :: [Text] -> QueryText
-sectionsParam = multiParam "section" "|"
+sectionParam :: [Text] -> QueryText
+sectionParam = multiParam "section" "|"
 
 param :: Text -> Maybe Text -> QueryText
 param k = maybeToList . fmap (\v -> (k, Just v))
