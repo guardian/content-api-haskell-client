@@ -53,7 +53,7 @@ instance FromJSON Tag where
 -- TODO: add all fields here http://explorer.content.guardianapis.com/#/tags?q=video
 data TagSearchQuery = TagSearchQuery {
     tsQueryText :: Maybe Text
-  , tsSection :: Maybe Text
+  , tsSection :: [Text]
   , tsTagType :: Maybe Text
   } deriving (Show)
 

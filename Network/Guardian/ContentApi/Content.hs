@@ -43,7 +43,7 @@ newtype ContentId = ContentId { unContentId :: Text } deriving Show
 
 data ContentSearchQuery = ContentSearchQuery {
     csQueryText  :: Maybe Text
-  , csSection    :: Maybe Text
+  , csSection    :: [Text]
   , csShowFields :: [Text]
   } deriving Show
 

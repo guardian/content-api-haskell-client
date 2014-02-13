@@ -76,28 +76,38 @@ search url = do
 
 contentSearchUrl :: ContentSearchQuery -> ContentApi String
 contentSearchUrl ContentSearchQuery {..} =
-  mkUrl ["search"] $ catMaybes [
-      mkParam "q"       csQueryText
-    , mkParam "section" csSection
-    , mkParam "show-fields" . Just $ T.intercalate "," csShowFields
+  mkUrl ["search"] $ concat [
+      param "q"     csQueryText
+    , sectionsParam csSection
+    , fieldsParam   csShowFields
     ]
 
 tagSearchUrl :: TagSearchQuery -> ContentApi String
 tagSearchUrl TagSearchQuery {..} =
-  mkUrl ["tags"] $ catMaybes [
-      mkParam "q"       tsQueryText
-    , mkParam "section" tsSection
-    , mkParam "type"    tsTagType
+  mkUrl ["tags"] $ concat [
+      param "q"     tsQueryText
+    , sectionsParam tsSection
+    , param "type"  tsTagType
     ]
 
 mkUrl :: [Text] -> QueryText -> ContentApi String
 mkUrl path query = do
   ApiConfig endpoint key _ <- ask
-  let query' = queryTextToQuery $ maybeToList (mkParam "api-key" key) ++ query
+  let query' = queryTextToQuery $ param "api-key" key <> query
   return $ BC.unpack . toByteString $ endpoint <> encodePath path query'
 
-mkParam :: Text -> Maybe Text -> Maybe (Text, Maybe Text)
-mkParam k = fmap $ \v -> (k, Just v) 
+fieldsParam :: [Text] -> QueryText
+fieldsParam = multiParam "fields" ","
+
+sectionsParam :: [Text] -> QueryText
+sectionsParam = multiParam "section" "|"
+
+param :: Text -> Maybe Text -> QueryText
+param k = maybeToList . fmap (\v -> (k, Just v))
+
+multiParam :: Text -> Text -> [Text] -> QueryText
+multiParam _ _   [] = []
+multiParam k sep vs = [(k, Just $ T.intercalate sep vs)]
 
 contentApiError :: ResponseHeaders -> Maybe ContentApiError
 contentApiError headers = case lookup "X-Mashery-Error-Code" headers of
