@@ -93,7 +93,7 @@ mkUrl path query = do
   return $ BC.unpack . toByteString $ endpoint <> encodePath path query'
 
 fieldsParam :: [Text] -> QueryText
-fieldsParam = multiParam "fields" ","
+fieldsParam = multiParam "show-fields" ","
 
 sectionParam :: [Text] -> QueryText
 sectionParam = multiParam "section" "|"
