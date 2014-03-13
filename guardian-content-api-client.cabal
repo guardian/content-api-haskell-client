@@ -14,7 +14,11 @@ cabal-version:       >=1.10
 
 library
   exposed-modules:     Network.Guardian.ContentApi
+                     , Network.Guardian.ContentApi.Content
+                     , Network.Guardian.ContentApi.Reference
+                     , Network.Guardian.ContentApi.Section
                      , Network.Guardian.ContentApi.Tag
+                     , Network.Guardian.ContentApi.URL
   other-extensions:    OverloadedStrings, DeriveDataTypeable
   build-depends:       base >=4.6 && <4.7
                      , blaze-builder >=0.3 && <0.4
