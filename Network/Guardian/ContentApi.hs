@@ -22,9 +22,9 @@ import Control.Exception.Lifted
 import Control.Monad
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Reader
+import Control.Monad.Trans.Resource
 
 import Data.Aeson      (FromJSON, decode)
-import Data.Conduit
 import Data.Maybe      (maybeToList)
 import Data.Monoid
 import Data.Typeable   (Typeable)
