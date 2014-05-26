@@ -5,11 +5,20 @@ The Guardian Content API client for
 
 ## Installation
 
+To build the library and register it in your local package database:
+
+    $ cd guardian-content-api-client
     $ cabal install
 
-## Running the examples
+## Running the example client application
 
-    $ runhaskell Example.hs
+The `example` directory contains a basic console application which can list the
+latest news headlines.
+
+For example, to search for articles about "node.js" in the "technology" section:
+
+    $ cd example
+    $ cabal run -- -q node.js --section technology
 
 ## Copyright
 

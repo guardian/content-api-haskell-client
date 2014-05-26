@@ -1,0 +1,22 @@
+name:                gu-headlines
+version:             0.1.0.0
+synopsis:            Example CLI application using guardian-content-api-client
+-- description:
+license:             Apache-2.0
+license-file:        LICENSE
+author:              Robert Berry, Ben James
+-- maintainer:
+copyright:           Copyright 2014 Guardian News and Media Limited
+category:            Web
+build-type:          Simple
+extra-source-files:  README.md
+cabal-version:       >=1.10
+
+executable gu-headlines
+  main-is:             Main.hs
+  build-depends:       base >=4.6 && <4.8
+                     , guardian-content-api-client ==0.1.0.0
+                     , text >=1.1 && <1.2
+                     , network >=2.5 && <2.6
+                     , optparse-applicative >=0.8 && <0.9
+  default-language:    Haskell2010
