@@ -18,7 +18,6 @@ import Network.Guardian.ContentApi.Tag
 
 import Blaze.ByteString.Builder (Builder, fromByteString, toByteString)
 
-import Control.Exception.Lifted
 import Control.Monad
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Reader
@@ -32,6 +31,8 @@ import Data.Text       (Text)
 
 import Network.HTTP.Conduit
 import Network.HTTP.Types
+
+import UnliftIO
 
 import qualified Data.ByteString.Char8 as BC
 import qualified Data.Text as T
@@ -65,14 +66,14 @@ tagSearch = search <=< tagSearchUrl
 search :: (FromJSON r) => String -> ContentApi r
 search url = do
   ApiConfig _ _ mgr <- ask
-  httpReq  <- parseUrl url
+  httpReq  <- parseUrlThrow url
   response <- catch (httpLbs httpReq mgr)
                 (\e -> case e :: HttpException of
-                  StatusCodeException _ headers _ ->
-                    maybe (throwIO e) throwIO (contentApiError headers)
-                  _ -> throwIO e)
+                  HttpExceptionRequest _ (StatusCodeException response _) ->
+                    liftIO $ maybe (throwIO e) throwIO (contentApiError (responseHeaders response))
+                  _ -> liftIO $ throwIO e)
   let searchResult = decode $ responseBody response
-  maybe (throwIO ParseError) return searchResult
+  maybe (liftIO $ throwIO ParseError) return searchResult
 
 contentSearchUrl :: ContentSearchQuery -> ContentApi String
 contentSearchUrl ContentSearchQuery {..} =
@@ -112,7 +113,7 @@ contentApiError headers = case lookup "X-Mashery-Error-Code" headers of
 
 defaultApiConfig :: MonadIO f => Maybe ApiKey -> f ApiConfig
 defaultApiConfig key = do
-  man <- liftIO $ newManager conduitManagerSettings
+  man <- liftIO $ newManager tlsManagerSettings
   return $ ApiConfig defaultEndpoint key man
   where
     defaultEndpoint = fromByteString "http://content.guardianapis.com"

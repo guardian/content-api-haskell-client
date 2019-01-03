@@ -20,9 +20,7 @@ import Data.Aeson
 import Data.Foldable (fold)
 import Data.Map      (Map)
 import Data.Text     (Text, unpack)
-import Data.Time
-
-import System.Locale (defaultTimeLocale)
+import Data.Time     (UTCTime, parseTime, defaultTimeLocale)
 
 data Content = Content {
     contentId :: ContentId
