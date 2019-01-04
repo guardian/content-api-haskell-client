@@ -1,0 +1,4 @@
+resolver: lts-12.22
+packages:
+  - guardian-content-api-client
+  - example
